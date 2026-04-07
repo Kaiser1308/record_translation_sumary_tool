@@ -1,0 +1,42 @@
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 200ms ease;
+}
+
+.status-idle .status-dot {
+  background: rgba(38, 37, 30, 0.25);
+}
+
+.status-active .status-dot {
+  background: #1f8a65;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(31, 138, 101, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(31, 138, 101, 0);
+  }
+}
+
+.status-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #26251e;
+  letter-spacing: 0.02em;
+}
+
+.status-idle .status-text {
+  color: rgba(38, 37, 30, 0.45);
+}

@@ -1,0 +1,237 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38, 37, 30, 0.35);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.modal-content {
+  background: #f2f1ed;
+  border: 1px solid rgba(38, 37, 30, 0.1);
+  border-radius: 10px;
+  box-shadow:
+    rgba(0, 0, 0, 0.14) 0px 28px 70px,
+    rgba(0, 0, 0, 0.1) 0px 14px 32px,
+    rgba(38, 37, 30, 0.1) 0px 0px 0px 1px;
+  max-width: 680px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(38, 37, 30, 0.08);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: -0.18px;
+  color: #26251e;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: rgba(38, 37, 30, 0.45);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 150ms ease;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #cf2d56;
+  background: rgba(38, 37, 30, 0.06);
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(38, 37, 30, 0.12);
+  border-radius: 3px;
+}
+
+.modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  gap: 16px;
+  color: rgba(38, 37, 30, 0.55);
+}
+
+.modal-loading p {
+  font-size: 15px;
+  margin: 0;
+}
+
+.modal-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid rgba(38, 37, 30, 0.1);
+  border-top-color: #f54e00;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.summary-content {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  color: #26251e;
+  line-height: 1.6;
+}
+
+.summary-content h2 {
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.08px;
+  margin: 20px 0 8px;
+  color: #26251e;
+}
+
+.summary-content h2:first-child {
+  margin-top: 0;
+}
+
+.summary-content ul {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.summary-content li {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.summary-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.summary-content th,
+.summary-content td {
+  padding: 6px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(38, 37, 30, 0.08);
+}
+
+.summary-content th {
+  font-weight: 600;
+  font-size: 13px;
+  color: rgba(38, 37, 30, 0.65);
+}
+
+.summary-content p {
+  font-size: 14px;
+  margin: 6px 0;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(38, 37, 30, 0.08);
+}
+
+.modal-footer .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 150ms ease;
+  padding: 10px 12px 10px 14px;
+}
+
+.modal-footer .btn-secondary {
+  background: #ebeae5;
+  color: #26251e;
+}
+
+.modal-footer .btn-secondary:hover {
+  color: #cf2d56;
+}
+
+.modal-footer .btn-primary {
+  background: #f54e00;
+  color: #fff;
+}
+
+.modal-footer .btn-primary:hover {
+  background: #db4600;
+}
+
+.modal-footer .btn-ghost {
+  background: rgba(38, 37, 30, 0.06);
+  color: rgba(38, 37, 30, 0.55);
+}
+
+.modal-footer .btn-ghost:hover {
+  color: #cf2d56;
+}
+
+.record-input {
+  min-width: 170px;
+  flex: 1 1 220px;
+  border: 1px solid rgba(38, 37, 30, 0.2);
+  border-radius: 8px;
+  padding: 8px 8px 6px 12px;
+  background: #f7f7f4;
+  color: #26251e;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.record-input:focus {
+  border-color: rgba(38, 37, 30, 0.2);
+  outline: none;
+}
+
+@media (max-width: 760px) {
+  .modal-footer .btn {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+}
+
+.save-notice {
+  padding: 0 20px 12px;
+  font-size: 12px;
+  color: #1f8a65;
+}

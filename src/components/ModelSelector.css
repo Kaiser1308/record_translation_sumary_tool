@@ -1,0 +1,100 @@
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.selector-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.selector-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(38, 37, 30, 0.55);
+  white-space: nowrap;
+}
+
+.selector-dropdown {
+  appearance: none;
+  background: #e6e5e0;
+  border: 1px solid rgba(38, 37, 30, 0.1);
+  border-radius: 8px;
+  padding: 5px 28px 5px 10px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: #26251e;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2326251e' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.selector-dropdown:hover {
+  border-color: rgba(38, 37, 30, 0.2);
+}
+
+.selector-dropdown:focus {
+  outline: none;
+  border-color: rgba(38, 37, 30, 0.2);
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
+}
+
+.selector-dropdown:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(38, 37, 30, 0.1);
+  border-radius: 9999px;
+  padding: 4px 10px 4px 6px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.toggle-btn.toggle-on {
+  background: #e6e5e0;
+  color: #1f8a65;
+  border-color: rgba(31, 138, 101, 0.2);
+}
+
+.toggle-btn.toggle-off {
+  background: #e6e5e0;
+  color: rgba(38, 37, 30, 0.4);
+  border-color: rgba(38, 37, 30, 0.1);
+}
+
+.toggle-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transition: background 150ms ease;
+}
+
+.toggle-on .toggle-dot {
+  background: #1f8a65;
+  box-shadow: 0 0 4px rgba(31, 138, 101, 0.4);
+}
+
+.toggle-off .toggle-dot {
+  background: rgba(38, 37, 30, 0.3);
+}
+
+@media (max-width: 768px) {
+  .model-selector {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

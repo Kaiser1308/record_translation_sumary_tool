@@ -1,0 +1,80 @@
+.control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(38, 37, 30, 0.08);
+  background: rgba(242, 241, 237, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+.control-left,
+.control-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 150ms ease;
+  padding: 10px 12px 10px 14px;
+}
+
+.btn:focus-visible {
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
+  outline: none;
+}
+
+.btn-primary {
+  background: #ebeae5;
+  color: #26251e;
+}
+
+.btn-primary:hover {
+  color: #cf2d56;
+}
+
+.btn-stop {
+  background: rgba(207, 45, 86, 0.1);
+  color: #cf2d56;
+}
+
+.btn-stop:hover {
+  background: rgba(207, 45, 86, 0.15);
+}
+
+.btn-secondary {
+  background: #ebeae5;
+  color: #26251e;
+}
+
+.btn-secondary:hover {
+  color: #cf2d56;
+}
+
+.btn-ghost {
+  background: rgba(38, 37, 30, 0.06);
+  color: rgba(38, 37, 30, 0.55);
+}
+
+.btn-ghost:hover {
+  color: #cf2d56;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  color: inherit;
+}

@@ -1,0 +1,137 @@
+.activity-log {
+  width: 300px;
+  min-width: 260px;
+  border-left: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  flex-shrink: 0;
+}
+
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.log-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.log-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  padding: 1px 6px;
+  border-radius: 9999px;
+}
+
+.log-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.log-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.log-body::-webkit-scrollbar-thumb {
+  background: rgba(38, 37, 30, 0.1);
+  border-radius: 2px;
+}
+
+.log-empty {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 5px 14px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.log-entry:hover {
+  background: rgba(38, 37, 30, 0.02);
+}
+
+.log-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.log-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.log-dot-info {
+  background: rgba(38, 37, 30, 0.25);
+}
+
+.log-dot-success {
+  background: var(--color-success);
+}
+
+.log-dot-error {
+  background: var(--color-error);
+}
+
+.log-dot-warn {
+  background: #c08532;
+}
+
+.log-dot-stt {
+  background: #9fbbe0;
+}
+
+.log-dot-translate {
+  background: #9fc9a2;
+}
+
+.log-dot-summary {
+  background: #c0a8dd;
+}
+
+.log-msg {
+  flex: 1;
+  word-break: break-word;
+}
+
+.log-success .log-msg {
+  color: var(--color-success);
+}
+
+.log-error .log-msg {
+  color: var(--color-error);
+}
+
+.log-warn .log-msg {
+  color: #c08532;
+}
+
+@media (max-width: 900px) {
+  .activity-log {
+    display: none;
+  }
+}

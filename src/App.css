@@ -1,0 +1,137 @@
+:root {
+  --color-bg: #f2f1ed;
+  --color-surface: #ebeae5;
+  --color-surface-400: #e6e5e0;
+  --color-surface-500: #e1e0db;
+  --color-text: #26251e;
+  --color-text-secondary: rgba(38, 37, 30, 0.55);
+  --color-text-muted: rgba(38, 37, 30, 0.35);
+  --color-border: rgba(38, 37, 30, 0.1);
+  --color-border-medium: rgba(38, 37, 30, 0.2);
+  --color-accent: #f54e00;
+  --color-error: #cf2d56;
+  --color-success: #1f8a65;
+  --radius: 8px;
+  --radius-pill: 9999px;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Helvetica Neue, Arial, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+code {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  background: var(--color-surface-400);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 100%;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand-title {
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -0.325px;
+  color: var(--color-text);
+  text-transform: uppercase;
+  font-feature-settings: 'ss09';
+}
+
+.brand-sub {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.api-warning {
+  padding: 10px 20px;
+  background: rgba(207, 45, 86, 0.06);
+  border-bottom: 1px solid rgba(207, 45, 86, 0.1);
+  font-size: 13px;
+  color: var(--color-error);
+}
+
+.api-warning-hint {
+  color: var(--color-text-secondary);
+}
+
+.api-warning code {
+  background: rgba(207, 45, 86, 0.08);
+  font-size: 11px;
+}
+
+@media (max-width: 768px) {
+  .brand {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .brand-sub {
+    font-size: 12px;
+  }
+
+  .app-header {
+    padding: 12px 14px 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
