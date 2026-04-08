@@ -69,6 +69,7 @@ Chọn 1 trong 2 engine STT:
 | Engine | Ưu điểm | Nhược điểm |
 |--------|---------|------------|
 | **Web Speech API** | Miễn phí, không cần key | Không phân loại speaker, tiếng Việt không ổn định |
+| **Groq Whisper V3** | Tốc độ siêu nhanh, tiếng Việt rất chuẩn | Cần API key Groq, không có phân loại người nói |
 | **Deepgram Nova-2** | Chính xác, **phân loại người nói** (EN), hỗ trợ tiếng Việt | Cần API key (free tier $200) |
 
 ### Phân loại người nói (Speaker Diarization)
@@ -181,9 +182,10 @@ App
 
 | Hook | Chức năng |
 |------|-----------|
-| `useSTT` | Abstraction layer — chọn engine (Browser/Deepgram), quản lý lifecycle |
+| `useSTT` | Abstraction layer — chọn engine (Browser/Deepgram/Groq), quản lý lifecycle |
 | `useBrowserSTT` | Web Speech API — `webkitSpeechRecognition`, auto-restart, tiếng Việt timeout |
 | `useDeepgramSTT` | Deepgram WebSocket — `nova-2`, utterances diarization, reconnect |
+| `useGroqSTT` | Groq Whisper V3 REST API — ghi âm từng đoạn và upload, tiếng Việt cực chuẩn |
 | `useTranslation` | Gọi `callLLM` để dịch từng segment |
 | `useSummarize` | Gọi `callLLM` để tạo biên bản (2-pass nếu sai format) |
 
@@ -224,6 +226,7 @@ App
 | Hạng mục | Chi phí |
 |----------|---------|
 | Web Speech API STT | $0 |
+| Groq Whisper V3 STT | $0 (Free Tier) |
 | Deepgram Nova-2 STT | ~$0.33 |
 | Dịch (Gemini Flash) | ~$0.02 |
 | Tóm tắt (Gemini Flash) | ~$0.01 |
@@ -243,6 +246,7 @@ src/
 │   ├── useSTT.js               # Abstraction layer cho STT engines
 │   ├── useBrowserSTT.js        # Web Speech API + auto-restart
 │   ├── useDeepgramSTT.js       # Deepgram WebSocket + utterances diarization
+│   ├── useGroqSTT.js           # Groq Whisper API STT
 │   ├── useTranslation.js       # Gọi AI dịch
 │   └── useSummarize.js         # Gọi AI tóm tắt (2-pass)
 ├── components/
@@ -304,6 +308,7 @@ Chi tiết đầy đủ: xem [DESIGN.md](./DESIGN.md)
 
 - **React 18** + **Vite 5** — SPA, no backend
 - **Web Speech API** — STT miễn phí (Chrome/Edge)
+- **Groq Whisper V3** — STT siêu tốc, miễn phí API
 - **Deepgram Nova-2** — STT + Speaker Diarization (WebSocket)
 - **Multi-provider LLM** — Anthropic, Google, OpenAI, DeepSeek, Groq, Zhipu
 - **marked** — Render markdown cho tóm tắt

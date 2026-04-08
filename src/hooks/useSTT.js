@@ -1,22 +1,29 @@
 import { useCallback, useEffect, useRef } from 'react';
 import useBrowserSTT from './useBrowserSTT';
 import useDeepgramSTT from './useDeepgramSTT';
+import useGroqSTT from './useGroqSTT';
 
 const EMPTY_SET = new Set();
 
 export default function useSTT(engine, onFinalResult, meetingLang) {
   const browserSTT = useBrowserSTT(onFinalResult, meetingLang);
   const deepgramSTT = useDeepgramSTT(onFinalResult, meetingLang);
+  const groqSTT = useGroqSTT(onFinalResult, meetingLang);
 
   useEffect(() => {
     if (engine === 'deepgram') {
       browserSTT.stop();
+      groqSTT.stop();
+    } else if (engine === 'groq') {
+      browserSTT.stop();
+      deepgramSTT.stop();
     } else {
       deepgramSTT.stop();
+      groqSTT.stop();
     }
   }, [engine]);
 
-  const active = engine === 'deepgram' ? deepgramSTT : browserSTT;
+  const active = engine === 'deepgram' ? deepgramSTT : (engine === 'groq' ? groqSTT : browserSTT);
   const activeRef = useRef(active);
   activeRef.current = active;
 

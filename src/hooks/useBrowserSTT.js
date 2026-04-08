@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-const VI_RESTART_TIMEOUT = 5000;
-const MAX_CONSECUTIVE_RESTARTS = 3;
+const VI_RESTART_TIMEOUT = 10000;
+const MAX_CONSECUTIVE_RESTARTS = 999;
 
 export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
   const [isListening, setIsListening] = useState(false);
@@ -77,12 +77,14 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
     consecutiveRestartsRef.current = 0;
     viWarningShownRef.current = false;
 
+    const isVi = meetingLangRef.current === 'vi';
     const recognition = new SpeechRecognition();
-    recognition.lang = meetingLangRef.current === 'vi' ? 'vi-VN' : 'en-US';
-    recognition.continuous = true;
+    recognition.lang = isVi ? 'vi-VN' : 'en-US';
+    recognition.continuous = !isVi;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
-    console.log('[BrowserSTT] start, lang =', recognition.lang);
+    console.log('[BrowserSTT] start, lang =', recognition.lang, 'continuous =', recognition.continuous);
 
     recognition.onresult = (event) => {
       lastResultTimeRef.current = Date.now();
