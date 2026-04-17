@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import useAudioLevel from './useAudioLevel';
 
 const RECORD_INTERVAL = 4000; // Ghi âm từng đoạn 4 giây
 
@@ -6,6 +7,7 @@ export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
   const [detectedSpeakers, setDetectedSpeakers] = useState(new Set());
+  const [meterStream, setMeterStream] = useState(null);
   const shouldListenRef = useRef(false);
   const onFinalResultRef = useRef(onFinalResult);
   const meetingLangRef = useRef(meetingLang);
@@ -20,6 +22,8 @@ export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
   useEffect(() => {
     meetingLangRef.current = meetingLang;
   }, [meetingLang]);
+
+  const audioLevel = useAudioLevel(meterStream);
 
   const sendAudioToGroq = async (blob) => {
     const key = import.meta.env.VITE_GROQ_API_KEY;
@@ -129,6 +133,7 @@ export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
           autoGainControl: true,
         } 
       });
+      setMeterStream(streamRef.current);
       setIsListening(true);
       startNextChunk();
     } catch (err) {
@@ -143,6 +148,7 @@ export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
       shouldListenRef.current = false;
       setIsListening(false);
       setInterimText('');
+      setMeterStream(null);
       
       const recorder = mediaRecorderRef.current;
       if (recorder && recorder.state !== 'inactive') {
@@ -162,5 +168,5 @@ export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
       setDetectedSpeakers(new Set());
   }, []);
 
-  return { start, stop, isListening, interimText, detectedSpeakers, resetSpeakers };
+  return { start, stop, isListening, interimText, detectedSpeakers, resetSpeakers, audioLevel };
 }

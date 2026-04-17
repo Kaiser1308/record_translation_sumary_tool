@@ -58,5 +58,6 @@ export default function useSTT(engine, onFinalResult, meetingLang) {
     interimText: active.interimText,
     detectedSpeakers: active.detectedSpeakers || EMPTY_SET,
     resetSpeakers: active.resetSpeakers || (() => {}),
+    audioLevel: active.audioLevel ?? 0,
   };
 }

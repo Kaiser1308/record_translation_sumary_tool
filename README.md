@@ -5,7 +5,9 @@ Web app chạy localhost giúp nghe giảng/cuộc họp và:
 - Dịch tự động sang ngôn ngữ kia sau mỗi câu
 - Phân loại người nói (Speaker Diarization) khi dùng Deepgram
 - Tóm tắt toàn bộ buổi họp bằng AI thành biên bản cấu trúc
-- Lưu transcript + tóm tắt ra file (.md / .txt) hoặc kho lưu trữ localStorage
+- Hiển thị thanh audio meter realtime để biết mic có nhận tín hiệu
+- Lưu biên bản theo 2 mẫu: bản tóm tắt AI + bản full script
+- Xuất ra file (.md / .txt) hoặc lưu vào kho localStorage
 
 ---
 
@@ -64,7 +66,7 @@ npm run dev
 | **Tiếng Anh** | STT nhận tiếng Anh, mỗi câu tự động dịch sang tiếng Việt |
 | **Tiếng Việt** | STT nhận tiếng Việt, chỉ hiển thị transcript (không gọi API dịch) |
 
-Chọn 1 trong 2 engine STT:
+Chọn 1 trong 3 engine STT:
 
 | Engine | Ưu điểm | Nhược điểm |
 |--------|---------|------------|
@@ -102,7 +104,18 @@ Chọn 1 trong 2 engine STT:
   - Câu hỏi mở cần theo dõi
 - Tóm tắt chỉ bao gồm segments từ **speakers đang được chọn** trong filter
 - 2-pass generation: nếu lần 1 sai format → tự động gọi lại
-- Lưu ra file `.md` hoặc `.txt` + lưu vào **Kho biên bản** (localStorage)
+- Trong modal biên bản có 2 tab:
+  - **Tóm tắt (AI)**: nội dung biên bản theo mẫu 7 mục
+  - **Full script**: bảng transcript đầy đủ (thời gian, người nói, EN, VI)
+- Lưu vào **Kho biên bản** sẽ lưu cả 2 mẫu ở trên
+- Lưu ra file `.md` hoặc `.txt` cũng kèm bảng full script
+
+### Audio meter realtime
+
+- Thanh meter hiển thị ngay dưới `ControlBar`
+- Khi mic nhận âm thanh: thanh dao động theo cường độ
+- Khi dừng ghi âm: meter về 0
+- Dùng `Web Audio API` qua hook `useAudioLevel`
 
 ---
 
@@ -172,10 +185,11 @@ App
 ├── ModelSelector          # Chọn STT engine, model dịch, model tóm tắt, ngôn ngữ
 ├── SpeakerFilter          # Panel filter speakers (chỉ hiện khi Deepgram)
 ├── ControlBar             # Nút Start/Stop/Clear/Tóm tắt/Kho biên bản
+├── AudioMeter             # Thanh mức âm thanh realtime
 ├── TranscriptPanel        # Danh sách segments (gộp cùng speaker liên tiếp)
 │   └── SegmentItem[]      # 1 segment: EN + VI + speaker badge + nút dịch
-├── SummaryModal           # Modal tóm tắt + lưu file + lưu record
-└── RecordVault            # Modal kho lưu trữ records
+├── SummaryModal           # Modal biên bản (tab Summary/Full script)
+└── RecordVault            # Modal kho lưu trữ records (tab Summary/Full script)
 ```
 
 ### Hooks
@@ -186,6 +200,7 @@ App
 | `useBrowserSTT` | Web Speech API — `webkitSpeechRecognition`, auto-restart, tiếng Việt timeout |
 | `useDeepgramSTT` | Deepgram WebSocket — `nova-2`, utterances diarization, reconnect |
 | `useGroqSTT` | Groq Whisper V3 REST API — ghi âm từng đoạn và upload, tiếng Việt cực chuẩn |
+| `useAudioLevel` | Đo mức tín hiệu mic (0-1) từ `MediaStream` để vẽ audio meter |
 | `useTranslation` | Gọi `callLLM` để dịch từng segment |
 | `useSummarize` | Gọi `callLLM` để tạo biên bản (2-pass nếu sai format) |
 
@@ -247,17 +262,19 @@ src/
 │   ├── useBrowserSTT.js        # Web Speech API + auto-restart
 │   ├── useDeepgramSTT.js       # Deepgram WebSocket + utterances diarization
 │   ├── useGroqSTT.js           # Groq Whisper API STT
+│   ├── useAudioLevel.js        # Tính mức âm thanh realtime
 │   ├── useTranslation.js       # Gọi AI dịch
 │   └── useSummarize.js         # Gọi AI tóm tắt (2-pass)
 ├── components/
 │   ├── ControlBar.jsx          # Start/Stop/Clear/Tóm tắt
+│   ├── AudioMeter.jsx          # Thanh audio meter
 │   ├── StatusIndicator.jsx     # Trạng thái nghe (dot + text)
 │   ├── ModelSelector.jsx       # Dropdown chọn engine/model/toggle dịch
 │   ├── SpeakerFilter.jsx       # Panel phân loại người nói
 │   ├── TranscriptPanel.jsx     # Danh sách segments (merge by speaker)
 │   ├── SegmentItem.jsx         # 1 đoạn transcript + dịch + speaker badge
-│   ├── SummaryModal.jsx        # Modal tóm tắt + lưu file
-│   ├── RecordVault.jsx         # Kho lưu trữ records
+│   ├── SummaryModal.jsx        # Modal biên bản (summary/full script)
+│   ├── RecordVault.jsx         # Kho biên bản (summary/full script)
 │   └── ActivityLog.jsx         # Log hoạt động (ẩn trên mobile)
 └── utils/
     ├── llm.js                  # Multi-provider LLM API wrapper
@@ -295,10 +312,12 @@ Chi tiết đầy đủ: xem [DESIGN.md](./DESIGN.md)
 | Vấn đề | Giải pháp |
 |--------|-----------|
 | Không nghe được | Kiểm tra quyền mic trong Chrome (icon khóa trên thanh địa chỉ) |
+| Bấm Bắt đầu nhưng không ra script | Chờ ~1-3 giây để mic + STT khởi tạo; kiểm tra Console có log `[BrowserSTT]`/`[DeepgramSTT]`; thử reload và cấp lại quyền mic |
 | Lỗi API dịch/tóm tắt | Kiểm tra API key trong `.env` — phải khớp provider đang chọn |
 | Dịch chậm | Bình thường (~1-2s/câu). Chọn Gemini Flash hoặc GLM-4 Flash để nhanh hơn |
 | Web Speech tiếng Việt không chạy | Web Speech API không hỗ trợ tốt tiếng Việt. Chuyển sang Deepgram |
 | Deepgram không kết nối | Kiểm tra `VITE_DEEPGRAM_API_KEY` trong `.env` |
+| Audio meter không nhúc nhích | Kiểm tra quyền microphone và đảm bảo đang ở trạng thái `Đang nghe`; thử đổi sang Deepgram/Groq |
 | Speaker filter không hiện | Chỉ hiện khi dùng Deepgram + tiếng Anh + đã phát hiện >= 1 speaker |
 | Đổi engine không dừng | Đã xử lý tự động — engine cũ sẽ dừng khi chuyển |
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { marked } from 'marked';
-import { saveAsMarkdown, saveAsTxt, getSessionDate } from '../utils/exportFile';
+import { saveAsMarkdown, saveAsTxt, getSessionDate, buildFullTranscriptMarkdown } from '../utils/exportFile';
 import { MODELS } from '../utils/models';
 import './SummaryModal.css';
 
@@ -10,12 +10,15 @@ export default function SummaryModal({
   summary,
   isSummarizing,
   segments,
+  speakerNames = {},
   translationModel,
   summaryModel,
   onSaveRecord,
   onOpenVault,
 }) {
   const [renderedSummary, setRenderedSummary] = useState('');
+  const [renderedFull, setRenderedFull] = useState('');
+  const [modalTab, setModalTab] = useState('summary');
   const [recordTitle, setRecordTitle] = useState('');
   const [recordDescription, setRecordDescription] = useState('');
   const [saveNotice, setSaveNotice] = useState('');
@@ -37,11 +40,27 @@ export default function SummaryModal({
   }, [summary]);
 
   useEffect(() => {
+    const md = buildFullTranscriptMarkdown(segments, speakerNames);
+    try {
+      const parsed = marked.parse(md);
+      if (parsed instanceof Promise) {
+        parsed.then(setRenderedFull);
+      } else {
+        setRenderedFull(parsed);
+      }
+    } catch (err) {
+      console.error('Full script render error:', err);
+      setRenderedFull('<p>Không hiển thị được bản ghi đầy đủ.</p>');
+    }
+  }, [segments, speakerNames]);
+
+  useEffect(() => {
     if (!isOpen) return;
     const defaultTitle = `Biên bản ${getSessionDate()}`;
     setRecordTitle(defaultTitle);
     setRecordDescription('');
     setSaveNotice('');
+    setModalTab('summary');
   }, [isOpen, summary]);
 
   if (!isOpen) return null;
@@ -53,7 +72,7 @@ export default function SummaryModal({
     saveAsMarkdown(summary, segments, date, {
       translation: transLabel,
       summary: sumLabel,
-    });
+    }, speakerNames);
   };
 
   const handleSaveTxt = () => {
@@ -63,7 +82,7 @@ export default function SummaryModal({
     saveAsTxt(summary, segments, date, {
       translation: transLabel,
       summary: sumLabel,
-    });
+    }, speakerNames);
   };
 
   const handleSaveRecord = () => {
@@ -75,6 +94,7 @@ export default function SummaryModal({
       description: recordDescription.trim(),
       summary,
       segments,
+      speakerNames,
       translationModel,
       summaryModel,
     });
@@ -99,10 +119,39 @@ export default function SummaryModal({
             </div>
           )}
           {!isSummarizing && summary && (
-            <div
-              className="summary-content"
-              dangerouslySetInnerHTML={{ __html: renderedSummary }}
-            />
+            <>
+              <div className="modal-tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={modalTab === 'summary'}
+                  className={`modal-tab ${modalTab === 'summary' ? 'active' : ''}`}
+                  onClick={() => setModalTab('summary')}
+                >
+                  Tóm tắt (AI)
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={modalTab === 'full'}
+                  className={`modal-tab ${modalTab === 'full' ? 'active' : ''}`}
+                  onClick={() => setModalTab('full')}
+                >
+                  Full script
+                </button>
+              </div>
+              {modalTab === 'summary' ? (
+                <div
+                  className="summary-content"
+                  dangerouslySetInnerHTML={{ __html: renderedSummary }}
+                />
+              ) : (
+                <div
+                  className="summary-content modal-full-script"
+                  dangerouslySetInnerHTML={{ __html: renderedFull }}
+                />
+              )}
+            </>
           )}
         </div>
 
@@ -124,6 +173,7 @@ export default function SummaryModal({
               className="btn btn-primary"
               onClick={handleSaveRecord}
               disabled={!recordTitle.trim()}
+              title="Lưu cả bản tóm tắt AI và bản ghi đầy đủ (bảng)"
             >
               Lưu vào kho
             </button>

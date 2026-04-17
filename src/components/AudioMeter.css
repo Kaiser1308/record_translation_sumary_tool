@@ -1,0 +1,37 @@
+.audio-meter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.audio-meter-track {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-400);
+  overflow: hidden;
+}
+
+.audio-meter-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    90deg,
+    rgba(31, 138, 101, 0.85) 0%,
+    var(--color-accent) 55%,
+    rgba(207, 45, 86, 0.95) 100%
+  );
+  transition: width 45ms linear;
+  will-change: width;
+}
+
+.audio-meter-label {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}

@@ -5,11 +5,13 @@ import useSummarize from './hooks/useSummarize';
 import ModelSelector from './components/ModelSelector';
 import StatusIndicator from './components/StatusIndicator';
 import ControlBar from './components/ControlBar';
+import AudioMeter from './components/AudioMeter';
 import TranscriptPanel from './components/TranscriptPanel';
 import SummaryModal from './components/SummaryModal';
 import RecordVault from './components/RecordVault';
 import SpeakerFilter from './components/SpeakerFilter';
 import { DEFAULT_TRANSLATION_MODEL, DEFAULT_SUMMARY_MODEL, MODELS } from './utils/models';
+import { buildFullTranscriptMarkdown } from './utils/exportFile';
 
 const SESSION_SEGMENTS_KEY = 'sessionSegments';
 const SESSION_SUMMARY_KEY = 'sessionSummaryText';
@@ -80,6 +82,8 @@ export default function App() {
     getStoredValue('meetingLang', 'en')
   );
   const [showSummary, setShowSummary] = useState(false);
+  /** Segment đã dùng cho lần tóm tắt hiện tại (theo filter speaker). */
+  const [summarySnapshotSegments, setSummarySnapshotSegments] = useState([]);
   const [showVault, setShowVault] = useState(false);
   const [summaryText, setSummaryText] = useState(() =>
     getStoredValue(SESSION_SUMMARY_KEY, '')
@@ -220,6 +224,7 @@ export default function App() {
   const handleClear = useCallback(() => {
     setSegments([]);
     setSummaryText('');
+    setSummarySnapshotSegments([]);
     setLogs([]);
     setSpeakerFilter(null);
     stt.resetSpeakers?.();
@@ -232,16 +237,16 @@ export default function App() {
   const handleSummarize = useCallback(async () => {
     setShowSummary(true);
     setSummaryText('');
+    let segsToSummarize = segmentsRef.current;
+    if (speakerFilter !== null) {
+      segsToSummarize = segsToSummarize.filter(
+        (s) => s.speaker == null || speakerFilter.has(s.speaker)
+      );
+    }
+    setSummarySnapshotSegments(segsToSummarize);
     const modelLabel = MODELS.find((m) => m.id === summaryModel)?.label || summaryModel;
     addLog('summary', `Đang tạo biên bản bằng ${modelLabel}...`);
     try {
-      // Filter segments theo speaker filter trước khi tóm tắt
-      let segsToSummarize = segmentsRef.current;
-      if (speakerFilter !== null) {
-        segsToSummarize = segsToSummarize.filter(
-          (s) => s.speaker == null || speakerFilter.has(s.speaker)
-        );
-      }
       const result = await summarize(segsToSummarize, summaryModel);
       setSummaryText(result);
       addLog('success', 'Đã tạo biên bản');
@@ -253,6 +258,7 @@ export default function App() {
 
   const handleCloseSummary = useCallback(() => {
     setShowSummary(false);
+    setSummarySnapshotSegments([]);
   }, []);
 
   const handleOpenVault = useCallback(() => {
@@ -265,12 +271,16 @@ export default function App() {
 
   const handleSaveRecord = useCallback((payload) => {
     const now = new Date().toISOString();
+    const segs = payload.segments || [];
+    const names = payload.speakerNames || {};
     const record = {
       id: Date.now() + Math.random(),
       title: payload.title,
       description: payload.description || '',
       summary: payload.summary,
-      segments: payload.segments || [],
+      fullScript: buildFullTranscriptMarkdown(segs, names),
+      speakerNamesSnapshot: { ...names },
+      segments: segs,
       translationModel: payload.translationModel,
       summaryModel: payload.summaryModel,
       createdAt: now,
@@ -375,6 +385,8 @@ export default function App() {
           recordCount={records.length}
         />
 
+        <AudioMeter isActive={stt.isListening} level={stt.audioLevel} />
+
         <TranscriptPanel 
           segments={segments} 
           interimText={stt.interimText} 
@@ -388,7 +400,8 @@ export default function App() {
         onClose={handleCloseSummary}
         summary={summaryText}
         isSummarizing={isSummarizing}
-        segments={segments}
+        segments={summarySnapshotSegments}
+        speakerNames={speakerNames}
         translationModel={translationModel}
         summaryModel={summaryModel}
         onSaveRecord={handleSaveRecord}

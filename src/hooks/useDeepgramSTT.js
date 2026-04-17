@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import useAudioLevel from './useAudioLevel';
 
 export default function useDeepgramSTT(onFinalResult, meetingLang = 'en') {
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
   const [detectedSpeakers, setDetectedSpeakers] = useState(new Set());
+  const [meterStream, setMeterStream] = useState(null);
   const wsRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
@@ -13,6 +15,8 @@ export default function useDeepgramSTT(onFinalResult, meetingLang = 'en') {
   const stopResolveRef = useRef(null);
   const meetingLangRef = useRef(meetingLang);
   const processedUtteranceIdsRef = useRef(new Set());
+
+  const audioLevel = useAudioLevel(meterStream);
 
   useEffect(() => {
     onFinalResultRef.current = onFinalResult;
@@ -71,6 +75,7 @@ export default function useDeepgramSTT(onFinalResult, meetingLang = 'en') {
       wsRef.current = null;
       mediaRecorderRef.current = null;
       streamRef.current = null;
+      setMeterStream(null);
       setIsListening(false);
       setInterimText('');
 
@@ -146,6 +151,7 @@ export default function useDeepgramSTT(onFinalResult, meetingLang = 'en') {
             audio: true,
           });
           streamRef.current = stream;
+          setMeterStream(stream);
 
           const recorder = new MediaRecorder(stream, {
             mimeType: 'audio/webm;codecs=opus',
@@ -238,5 +244,5 @@ export default function useDeepgramSTT(onFinalResult, meetingLang = 'en') {
     setDetectedSpeakers(new Set());
   }, []);
 
-  return { start, stop, isListening, interimText, detectedSpeakers, resetSpeakers };
+  return { start, stop, isListening, interimText, detectedSpeakers, resetSpeakers, audioLevel };
 }
