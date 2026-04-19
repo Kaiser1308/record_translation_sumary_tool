@@ -30,6 +30,7 @@ export const DEFAULT_SUMMARY_MODEL = 'gemini-2.5-flash'; // Đổi từ Sonnet q
 export const STT_ENGINES = [
   { id: 'browser', label: 'Web Speech API', note: 'Miễn phí' },
   { id: 'deepgram', label: 'Deepgram Nova-2', note: 'Giọng Ấn tốt hơn' },
+  { id: 'groq', label: 'Groq Whisper V3', note: 'Tiếng Việt tốt, Miễn phí' },
 ];
 
 export const GROUPED_MODELS = MODELS.reduce((acc, model) => {

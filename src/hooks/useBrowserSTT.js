@@ -1,11 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import useAudioLevel from './useAudioLevel';
 
-const VI_RESTART_TIMEOUT = 5000;
-const MAX_CONSECUTIVE_RESTARTS = 3;
+const VI_RESTART_TIMEOUT = 10000;
+const MAX_CONSECUTIVE_RESTARTS = 999;
 
 export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
+  const [meterStream, setMeterStream] = useState(null);
+  const meterStreamRef = useRef(null);
   const recognitionRef = useRef(null);
   const shouldListenRef = useRef(false);
   const onFinalResultRef = useRef(onFinalResult);
@@ -23,6 +26,8 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
   useEffect(() => {
     meetingLangRef.current = meetingLang;
   }, [meetingLang]);
+
+  const audioLevel = useAudioLevel(meterStream);
 
   const clearViRestartTimer = useCallback(() => {
     if (viRestartTimerRef.current) {
@@ -50,6 +55,11 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
           shouldListenRef.current = false;
           recognitionRef.current = null;
           setIsListening(false);
+          if (meterStreamRef.current) {
+            meterStreamRef.current.getTracks().forEach((t) => t.stop());
+            meterStreamRef.current = null;
+          }
+          setMeterStream(null);
           clearViRestartTimer();
           try { recognition.abort(); } catch {}
           return;
@@ -77,12 +87,14 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
     consecutiveRestartsRef.current = 0;
     viWarningShownRef.current = false;
 
+    const isVi = meetingLangRef.current === 'vi';
     const recognition = new SpeechRecognition();
-    recognition.lang = meetingLangRef.current === 'vi' ? 'vi-VN' : 'en-US';
-    recognition.continuous = true;
+    recognition.lang = isVi ? 'vi-VN' : 'en-US';
+    recognition.continuous = !isVi;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
-    console.log('[BrowserSTT] start, lang =', recognition.lang);
+    console.log('[BrowserSTT] start, lang =', recognition.lang, 'continuous =', recognition.continuous);
 
     recognition.onresult = (event) => {
       lastResultTimeRef.current = Date.now();
@@ -91,14 +103,17 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
 
       let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          const text = transcript.trim();
-          if (text) {
-            onFinalResultRef.current?.(text, { speaker: null });
-          }
+        const result = event.results[i];
+        const alt = result[0];
+        const raw = alt?.transcript ?? '';
+        if (result.isFinal) {
+          const text = raw.trim();
+          if (!text) continue;
+          // Web Speech đôi khi trả chuỗi rác "null" / "null null"
+          if (meetingLangRef.current === 'vi' && /^(null(\s+null)*)$/i.test(text)) continue;
+          onFinalResultRef.current?.(text, { speaker: null });
         } else {
-          interim += transcript;
+          interim += raw;
         }
       }
       setInterimText(interim);
@@ -132,15 +147,54 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
-    scheduleViRestart(recognition);
-    setIsListening(true);
+
+    let recognitionStarted = false;
+    const tryStartRecognition = () => {
+      if (recognitionStarted) return;
+      if (!shouldListenRef.current) return;
+      if (recognitionRef.current !== recognition) return;
+      recognitionStarted = true;
+      try {
+        recognition.start();
+        scheduleViRestart(recognition);
+        setIsListening(true);
+      } catch (err) {
+        console.error('[BrowserSTT] start error:', err);
+      }
+    };
+
+    // Mở mic cho meter trước, rồi mới SpeechRecognition (tránh xung đột trên một số trình duyệt).
+    // Timer dự phòng: nếu getUserMedia treo hoặc lỗi, vẫn gọi recognition.start() sau tối đa 2.5s.
+    const fallbackTimer = setTimeout(() => tryStartRecognition(), 2500);
+
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        if (!shouldListenRef.current) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        meterStreamRef.current = stream;
+        setMeterStream(stream);
+      })
+      .catch((err) => {
+        console.warn('[BrowserSTT] Meter stream:', err?.message || err);
+      })
+      .finally(() => {
+        clearTimeout(fallbackTimer);
+        tryStartRecognition();
+      });
   }, [scheduleViRestart]);
 
   const stop = useCallback(() => {
     return new Promise((resolve) => {
       shouldListenRef.current = false;
       clearViRestartTimer();
+      if (meterStreamRef.current) {
+        meterStreamRef.current.getTracks().forEach((t) => t.stop());
+        meterStreamRef.current = null;
+      }
+      setMeterStream(null);
       const rec = recognitionRef.current;
       recognitionRef.current = null;
       setIsListening(false);
@@ -166,5 +220,5 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
     });
   }, [clearViRestartTimer]);
 
-  return { start, stop, isListening, interimText };
+  return { start, stop, isListening, interimText, audioLevel };
 }

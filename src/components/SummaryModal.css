@@ -102,6 +102,38 @@
   to { transform: rotate(360deg); }
 }
 
+.modal-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.modal-tab {
+  border: 1px solid rgba(38, 37, 30, 0.12);
+  background: #ebeae5;
+  color: rgba(38, 37, 30, 0.55);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.modal-tab:hover {
+  color: #26251e;
+}
+
+.modal-tab.active {
+  background: #26251e;
+  color: #f2f1ed;
+  border-color: #26251e;
+}
+
+.modal-full-script {
+  font-size: 13px;
+  overflow-x: auto;
+}
+
 .summary-content {
   font-family: 'DM Sans', system-ui, sans-serif;
   color: #26251e;

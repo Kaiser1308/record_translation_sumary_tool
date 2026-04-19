@@ -1,8 +1,10 @@
-export function saveAsMarkdown(summary, segments, sessionDate, modelInfo) {
+import { getSpeakerLabel } from './speakerColors';
+
+export function saveAsMarkdown(summary, segments, sessionDate, modelInfo, speakerNames = {}) {
   const modelLine = modelInfo
     ? `\nDịch bằng: ${modelInfo.translation} | Tóm tắt bằng: ${modelInfo.summary}\n`
     : '';
-  const fullTable = buildMarkdownFullTable(segments);
+  const fullTable = buildMarkdownFullTable(segments, speakerNames);
 
   const content =
     `# Biên bản cuộc họp — ${sessionDate}\n${modelLine}\n${summary}\n\n---\n\n## Bảng ghi đầy đủ\n\n${fullTable}\n`;
@@ -10,14 +12,14 @@ export function saveAsMarkdown(summary, segments, sessionDate, modelInfo) {
   downloadFile(`bien-ban_${sessionDate}.md`, content, 'text/markdown');
 }
 
-export function saveAsTxt(summary, segments, sessionDate, modelInfo) {
+export function saveAsTxt(summary, segments, sessionDate, modelInfo, speakerNames = {}) {
   const plain = summary
     .replace(/#{1,3} /g, '')
     .replace(/\*\*/g, '');
   const modelLine = modelInfo
     ? `Dịch bằng: ${modelInfo.translation} | Tóm tắt bằng: ${modelInfo.summary}`
     : '';
-  const fullTable = buildTextFullTable(segments);
+  const fullTable = buildTextFullTable(segments, speakerNames);
 
   const content =
     `BIEN BAN CUOC HOP — ${sessionDate}\n${'='.repeat(40)}\n${modelLine}\n\n${plain}\n\n${'='.repeat(
@@ -27,11 +29,12 @@ export function saveAsTxt(summary, segments, sessionDate, modelInfo) {
   downloadFile(`bien-ban_${sessionDate}.txt`, content, 'text/plain');
 }
 
-function buildMarkdownFullTable(segments) {
+export function buildMarkdownFullTable(segments, speakerNames = {}) {
   const header = '| Thời gian | Người nói | EN | VI |\n|---|---|---|---|';
-  const rows = segments.map((s) => {
+  const rows = (segments || []).map((s) => {
     const time = safeCell(s.timestamp || s.time || '[chưa rõ]');
-    const speaker = s.speaker != null ? `S${s.speaker}` : '[chưa rõ]';
+    const speaker =
+      s.speaker != null ? safeCell(getSpeakerLabel(s.speaker, speakerNames)) : '[chưa rõ]';
     const en = safeCell(s.en || '');
     const vi = safeCell(s.vi ?? '(chưa dịch)');
     return `| ${time} | ${speaker} | ${en} | ${vi} |`;
@@ -39,16 +42,45 @@ function buildMarkdownFullTable(segments) {
   return [header, ...rows].join('\n');
 }
 
-function buildTextFullTable(segments) {
+export function buildTextFullTable(segments, speakerNames = {}) {
   const lines = ['| Thời gian | Người nói | EN | VI |', '|---|---|---|---|'];
-  for (const s of segments) {
+  for (const s of segments || []) {
     const time = safeCell(s.timestamp || s.time || '[chưa rõ]');
-    const speaker = s.speaker != null ? `S${s.speaker}` : '[chưa rõ]';
+    const speaker =
+      s.speaker != null ? safeCell(getSpeakerLabel(s.speaker, speakerNames)) : '[chưa rõ]';
     const en = safeCell(s.en || '');
     const vi = safeCell(s.vi ?? '(chưa dịch)');
     lines.push(`| ${time} | ${speaker} | ${en} | ${vi} |`);
   }
   return lines.join('\n');
+}
+
+/** Chỉ transcript (.md), không cần tóm tắt — tiện upload NotebookLM / công cụ khác. */
+export function saveTranscriptMarkdownOnly(segments, sessionDate, speakerNames = {}, meetingLang = 'en') {
+  const note =
+    meetingLang === 'vi'
+      ? '_Nguồn: tiếng Việt — file chỉ gồm bảng ghi, không kèm tóm tắt AI._'
+      : '_Source: English — transcript table only, no AI summary._';
+  const content = `# Transcript — ${sessionDate}\n\n${note}\n\n${buildFullTranscriptMarkdown(
+    segments,
+    speakerNames
+  )}`;
+  downloadFile(`transcript_${sessionDate}.md`, content, 'text/markdown');
+}
+
+/** Markdown: tiêu đề + bảng transcript đầy đủ (dùng lưu kho / xem trước). */
+export function buildFullTranscriptMarkdown(segments, speakerNames = {}) {
+  if (!segments || segments.length === 0) {
+    return '_(Không có đoạn transcript.)_\n';
+  }
+  return `## Bảng ghi đầy đủ\n\n${buildMarkdownFullTable(segments, speakerNames)}\n`;
+}
+
+/** Lấy nội dung full script từ record (tương thích bản cũ chỉ có segments). */
+export function getRecordFullScript(record) {
+  if (!record) return '';
+  if (record.fullScript) return record.fullScript;
+  return buildFullTranscriptMarkdown(record.segments || [], record.speakerNamesSnapshot || {});
 }
 
 function safeCell(text) {

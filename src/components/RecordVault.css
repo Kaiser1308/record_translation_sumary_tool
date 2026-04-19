@@ -159,10 +159,58 @@
   font-size: 14px;
 }
 
+.vault-preview-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.vault-tab {
+  border: 1px solid rgba(38, 37, 30, 0.12);
+  background: #ebeae5;
+  color: rgba(38, 37, 30, 0.55);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.vault-tab:hover {
+  color: #26251e;
+}
+
+.vault-tab.active {
+  background: #26251e;
+  color: #f2f1ed;
+  border-color: #26251e;
+}
+
 .vault-preview-summary {
   color: #26251e;
   line-height: 1.6;
   font-size: 14px;
+  overflow-x: auto;
+}
+
+.vault-preview-summary table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.vault-preview-summary th,
+.vault-preview-summary td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(38, 37, 30, 0.08);
+}
+
+.vault-preview-summary th {
+  font-weight: 600;
+  font-size: 12px;
+  color: rgba(38, 37, 30, 0.65);
 }
 
 .vault-empty {

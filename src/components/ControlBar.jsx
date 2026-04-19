@@ -6,6 +6,7 @@ export default function ControlBar({
   onStop,
   onClear,
   onSummarize,
+  onExportTranscriptMd,
   onOpenVault,
   segmentCount,
   recordCount,
@@ -45,6 +46,15 @@ export default function ControlBar({
           disabled={segmentCount === 0}
         >
           Tạo biên bản
+        </button>
+        <button
+          className="btn btn-secondary"
+          type="button"
+          onClick={onExportTranscriptMd}
+          disabled={segmentCount === 0}
+          title="Tải full transcript .md (toàn bộ đoạn ghi, không theo bộ lọc speaker)"
+        >
+          Tải full transcript .md
         </button>
         <button className="btn btn-ghost" onClick={onOpenVault}>
           Kho biên bản ({recordCount})
