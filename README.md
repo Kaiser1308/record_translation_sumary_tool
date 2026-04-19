@@ -88,3 +88,4 @@ Lưu ý:
 - Thiết kế UI: xem `DESIGN.md`
 - Tổng quan sản phẩm + roadmap: xem `PROJECT_OVERVIEW.md`
 - Kế hoạch cải thiện STT + chi phí cloud: xem `Issue.md`
+- Kế hoạch ổn định (nhấn là chạy): xem `STABILITY_PLAN.md`
