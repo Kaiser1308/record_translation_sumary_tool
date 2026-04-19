@@ -103,14 +103,17 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
 
       let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          const text = transcript.trim();
-          if (text) {
-            onFinalResultRef.current?.(text, { speaker: null });
-          }
+        const result = event.results[i];
+        const alt = result[0];
+        const raw = alt?.transcript ?? '';
+        if (result.isFinal) {
+          const text = raw.trim();
+          if (!text) continue;
+          // Web Speech đôi khi trả chuỗi rác "null" / "null null"
+          if (meetingLangRef.current === 'vi' && /^(null(\s+null)*)$/i.test(text)) continue;
+          onFinalResultRef.current?.(text, { speaker: null });
         } else {
-          interim += transcript;
+          interim += raw;
         }
       }
       setInterimText(interim);

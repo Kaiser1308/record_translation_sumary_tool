@@ -11,7 +11,7 @@ import SummaryModal from './components/SummaryModal';
 import RecordVault from './components/RecordVault';
 import SpeakerFilter from './components/SpeakerFilter';
 import { DEFAULT_TRANSLATION_MODEL, DEFAULT_SUMMARY_MODEL, MODELS } from './utils/models';
-import { buildFullTranscriptMarkdown } from './utils/exportFile';
+import { buildFullTranscriptMarkdown, getSessionDate, saveTranscriptMarkdownOnly } from './utils/exportFile';
 
 const SESSION_SEGMENTS_KEY = 'sessionSegments';
 const SESSION_SUMMARY_KEY = 'sessionSummaryText';
@@ -265,6 +265,13 @@ export default function App() {
     setShowVault(true);
   }, []);
 
+  const handleExportTranscriptMd = useCallback(() => {
+    const segs = segmentsRef.current;
+    if (!segs.length) return;
+    saveTranscriptMarkdownOnly(segs, getSessionDate(), speakerNames, meetingLang);
+    addLog('info', 'Đã tải file transcript .md');
+  }, [speakerNames, meetingLang, addLog]);
+
   const handleCloseVault = useCallback(() => {
     setShowVault(false);
   }, []);
@@ -380,6 +387,7 @@ export default function App() {
           onStop={handleStop}
           onClear={handleClear}
           onSummarize={handleSummarize}
+          onExportTranscriptMd={handleExportTranscriptMd}
           onOpenVault={handleOpenVault}
           segmentCount={segments.length}
           recordCount={records.length}

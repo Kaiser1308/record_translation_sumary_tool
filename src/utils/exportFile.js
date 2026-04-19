@@ -55,6 +55,19 @@ export function buildTextFullTable(segments, speakerNames = {}) {
   return lines.join('\n');
 }
 
+/** Chỉ transcript (.md), không cần tóm tắt — tiện upload NotebookLM / công cụ khác. */
+export function saveTranscriptMarkdownOnly(segments, sessionDate, speakerNames = {}, meetingLang = 'en') {
+  const note =
+    meetingLang === 'vi'
+      ? '_Nguồn: tiếng Việt — file chỉ gồm bảng ghi, không kèm tóm tắt AI._'
+      : '_Source: English — transcript table only, no AI summary._';
+  const content = `# Transcript — ${sessionDate}\n\n${note}\n\n${buildFullTranscriptMarkdown(
+    segments,
+    speakerNames
+  )}`;
+  downloadFile(`transcript_${sessionDate}.md`, content, 'text/markdown');
+}
+
 /** Markdown: tiêu đề + bảng transcript đầy đủ (dùng lưu kho / xem trước). */
 export function buildFullTranscriptMarkdown(segments, speakerNames = {}) {
   if (!segments || segments.length === 0) {

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import useAudioLevel from './useAudioLevel';
 
-const RECORD_INTERVAL = 4000; // Ghi âm từng đoạn 4 giây
+const RECORD_INTERVAL = 12000; // Tăng lên 12s để giảm chi phí (Groq billed tối thiểu 10s/request)
 
 export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
   const [isListening, setIsListening] = useState(false);
