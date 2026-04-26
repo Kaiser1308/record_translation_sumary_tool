@@ -286,12 +286,14 @@ export default function App() {
     setSummarySnapshotSegments([]);
     setLogs([]);
     setSpeakerFilter(null);
+    setSpeakerNames({});
     stt.resetSpeakers?.();
     startTimeBySessionRef.current.clear();
     firstResultLoggedRef.current.clear();
     localStorage.removeItem(SESSION_SEGMENTS_KEY);
     localStorage.removeItem(SESSION_SUMMARY_KEY);
     localStorage.removeItem(SESSION_LOGS_KEY);
+    localStorage.removeItem(SESSION_SPEAKER_NAMES_KEY);
   }, [stt]);
 
   // ★ Tóm tắt chỉ segments hiển thị (theo filter) — Option A
