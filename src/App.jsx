@@ -441,6 +441,7 @@ export default function App() {
             speakerNames={speakerNames}
             setSpeakerNames={setSpeakerNames}
             segments={segments}
+            meetingLang={meetingLang}
           />
         )}
 
