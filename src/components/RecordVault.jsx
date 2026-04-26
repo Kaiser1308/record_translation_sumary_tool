@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { marked } from 'marked';
 import { getRecordFullScript } from '../utils/exportFile';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 import './RecordVault.css';
 
 function formatDateTime(iso) {
@@ -193,7 +194,7 @@ export default function RecordVault({
                 <div
                   className="vault-preview-summary"
                   dangerouslySetInnerHTML={{
-                    __html: vaultTab === 'summary' ? renderedSummaryHtml : renderedFullHtml,
+                    __html: sanitizeHtml(vaultTab === 'summary' ? renderedSummaryHtml : renderedFullHtml),
                   }}
                 />
               </>

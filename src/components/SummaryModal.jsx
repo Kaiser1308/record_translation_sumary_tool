@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { marked } from 'marked';
 import { saveAsMarkdown, saveAsTxt, getSessionDate, buildFullTranscriptMarkdown } from '../utils/exportFile';
 import { MODELS } from '../utils/models';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 import './SummaryModal.css';
 
 export default function SummaryModal({
@@ -143,12 +144,12 @@ export default function SummaryModal({
               {modalTab === 'summary' ? (
                 <div
                   className="summary-content"
-                  dangerouslySetInnerHTML={{ __html: renderedSummary }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedSummary) }}
                 />
               ) : (
                 <div
                   className="summary-content modal-full-script"
-                  dangerouslySetInnerHTML={{ __html: renderedFull }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedFull) }}
                 />
               )}
             </>
