@@ -129,7 +129,7 @@ export default function App() {
   const firstResultLoggedRef = useRef(new Set());
 
   const addLog = useCallback((type, message) => {
-    setLogs((prev) => [...prev, { id: Date.now() + Math.random(), type, message, time: timestamp() }]);
+    setLogs((prev) => [...prev, { id: crypto.randomUUID(), type, message, time: timestamp() }]);
   }, []);
 
   const logSttEvent = useCallback((event, payload = {}, type = 'info') => {
@@ -165,7 +165,7 @@ export default function App() {
       const firstResultMs = startedAt ? Date.now() - startedAt : undefined;
       logSttEvent('first_result_ms', { sessionId, ms: firstResultMs }, 'success');
     }
-    const id = Date.now() + Math.random();
+    const id = crypto.randomUUID();
     const speaker = meta.speaker ?? null;
     const isEn = meetingLang === 'en';
     const seg = {
@@ -342,7 +342,7 @@ export default function App() {
     const segs = payload.segments || [];
     const names = payload.speakerNames || {};
     const record = {
-      id: Date.now() + Math.random(),
+      id: crypto.randomUUID(),
       title: payload.title,
       description: payload.description || '',
       summary: payload.summary,
