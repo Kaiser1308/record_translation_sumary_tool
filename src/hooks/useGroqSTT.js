@@ -14,6 +14,8 @@ export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
   const fileReaderRef = useRef(null);
+  const chunkTimerRef = useRef(null);
+  const startResolveRef = useRef(null);
 
   useEffect(() => {
     onFinalResultRef.current = onFinalResult;
@@ -102,12 +104,13 @@ export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
         recorder.start();
         setInterimText('...'); // show thinking state
         
-        setTimeout(() => {
+        chunkTimerRef.current = setTimeout(() => {
+            chunkTimerRef.current = null;
             if (recorder.state === 'recording') {
                 recorder.stop();
             }
             if (shouldListenRef.current) {
-                startNextChunk(); // loop next chunk immediately
+                startNextChunk();
             }
         }, RECORD_INTERVAL);
 
@@ -117,35 +120,57 @@ export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
   };
 
   const start = useCallback(async () => {
+    if (isListening) return;
     const key = import.meta.env.VITE_GROQ_API_KEY;
     if (!key) {
        alert('Chưa cấu hình VITE_GROQ_API_KEY trong file .env');
-       return;
+       throw new Error('ENGINE_KEY_MISSING');
     }
     shouldListenRef.current = true;
     
     try {
       // Đảm bảo audio có chất lượng đủ tốt
-      streamRef.current = await navigator.mediaDevices.getUserMedia({ 
+      streamRef.current = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-        } 
+        }
       });
       setMeterStream(streamRef.current);
       setIsListening(true);
       startNextChunk();
+      return new Promise((resolve) => {
+        startResolveRef.current = resolve;
+        setTimeout(() => {
+          if (startResolveRef.current) {
+            startResolveRef.current();
+            startResolveRef.current = null;
+          }
+        }, 1500);
+      });
     } catch (err) {
       console.error('[GroqSTT] Mic error:', err);
       shouldListenRef.current = false;
       alert("Không thể truy cập Microphone cho Groq.");
+      throw new Error('MIC_DENIED');
     }
-  }, []);
+  }, [isListening]);
 
   const stop = useCallback(() => {
     return new Promise((resolve) => {
+      if (!shouldListenRef.current && !mediaRecorderRef.current && !streamRef.current) {
+        setIsListening(false);
+        setInterimText('');
+        setMeterStream(null);
+        resolve();
+        return;
+      }
       shouldListenRef.current = false;
+      if (chunkTimerRef.current) {
+        clearTimeout(chunkTimerRef.current);
+        chunkTimerRef.current = null;
+      }
       setIsListening(false);
       setInterimText('');
       setMeterStream(null);
@@ -160,7 +185,10 @@ export default function useGroqSTT(onFinalResult, meetingLang = 'en') {
         streamRef.current = null;
       }
       
-      resolve();
+      // Timeout protection in case recorder.stop() hangs
+      setTimeout(() => {
+        resolve();
+      }, 2000);
     });
   }, []);
 
