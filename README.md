@@ -1,91 +1,173 @@
-# Speech Translator — Hướng Dẫn Sử Dụng
+# Speech Translator Web App
 
-Ứng dụng web chạy local để ghi âm cuộc họp/lớp học, chuyển thành transcript realtime, dịch tự động và tạo biên bản.
+A browser-based speech translation application for meetings and classes. The app captures microphone audio, generates realtime transcripts, translates between English and Vietnamese, and creates AI-powered meeting summaries.
 
-## Tính năng chính
+Ứng dụng web hỗ trợ ghi âm cuộc họp/lớp học, tạo transcript theo thời gian thực, dịch Anh-Việt và sinh biên bản/tóm tắt bằng AI.
 
-- Transcript realtime tiếng Anh hoặc tiếng Việt
-- Dịch tự động sang ngôn ngữ còn lại
-- Phân loại người nói (khi dùng Deepgram + English)
-- Tạo biên bản AI và lưu theo 2 mẫu:
-  - `Tóm tắt (AI)`
-  - `Full script` (bảng transcript đầy đủ)
-- Audio meter realtime để kiểm tra mic đang nhận âm thanh
-- Xuất file `.md` / `.txt` hoặc lưu vào kho local
+## Project Overview
 
-## So sánh nhanh STT engine
+| English | Tiếng Việt |
+| --- | --- |
+| A local-first web app for realtime speech transcription, translation, and AI meeting notes. | Ứng dụng web ưu tiên chạy local để ghi âm, nhận dạng giọng nói, dịch và tạo biên bản AI. |
+| Designed for meetings, classrooms, and live discussions using one microphone-enabled device. | Phù hợp cho cuộc họp, lớp học và buổi thảo luận trực tiếp với một thiết bị thu âm trung tâm. |
+| Supports multiple STT engines so users can balance cost, accuracy, and setup complexity. | Hỗ trợ nhiều engine STT để người dùng lựa chọn theo chi phí, độ chính xác và độ phức tạp khi cài đặt. |
 
-| Engine | Ưu điểm | Lưu ý |
-|--------|---------|-------|
-| `Web Speech API` | Không cần API key, setup nhanh | Chất lượng tiếng Việt không ổn định, phù hợp demo |
-| `Groq Whisper V3` | Tốc độ cao, chi phí thấp | Không có speaker diarization mặc định |
-| `Deepgram Nova-2` | Ổn định cho realtime, hỗ trợ speaker diarization | Cần API key, tính phí theo phút |
+## Features
 
-## Yêu cầu
+| Feature | Description | Mô tả |
+| --- | --- | --- |
+| Realtime transcription | Converts microphone audio into live transcript segments. | Chuyển âm thanh từ microphone thành transcript theo thời gian thực. |
+| English-Vietnamese translation | Translates transcript content between English and Vietnamese. | Dịch nội dung transcript giữa tiếng Anh và tiếng Việt. |
+| Multiple STT engines | Supports Web Speech API, Groq Whisper, and Deepgram Nova-2. | Hỗ trợ Web Speech API, Groq Whisper và Deepgram Nova-2. |
+| Speaker diarization | Identifies speakers when using Deepgram with English audio. | Phân biệt người nói khi dùng Deepgram với âm thanh tiếng Anh. |
+| AI meeting summary | Generates structured meeting notes from transcript segments. | Tạo biên bản/tóm tắt có cấu trúc từ transcript. |
+| Record vault | Saves summaries and full scripts in local browser storage. | Lưu tóm tắt và full script trong localStorage của trình duyệt. |
+| Export | Exports summaries or transcripts as `.md` / `.txt` files. | Xuất biên bản hoặc transcript thành file `.md` / `.txt`. |
+| Audio meter | Shows realtime microphone input level. | Hiển thị mức tín hiệu microphone theo thời gian thực. |
 
-- `Node.js` 18+
-- Chrome hoặc Edge
-- Ít nhất 1 API key cho dịch/tóm tắt
+## Tech Stack
 
-## Cài đặt nhanh
+| Area | Technologies |
+| --- | --- |
+| Frontend | React 18, Vite, JavaScript |
+| Speech-to-text | Web Speech API, Groq Whisper, Deepgram Nova-2 |
+| Browser audio | MediaRecorder, Web Audio API |
+| AI integration | Configurable LLM providers through environment variables |
+| Storage | localStorage |
+| Markdown rendering | marked, DOMPurify |
+| Testing | Vitest, Testing Library, jsdom, happy-dom |
+
+## STT Engine Comparison
+
+| Engine | Strengths | Notes |
+| --- | --- | --- |
+| Web Speech API | No API key required, fast setup, useful for demos. | Browser-dependent quality; Vietnamese recognition may be unstable. |
+| Groq Whisper | Fast Whisper-based transcription with simple API usage. | Does not provide built-in speaker diarization in this app. |
+| Deepgram Nova-2 | Strong realtime STT support and speaker diarization for English. | Requires a Deepgram API key and usage-based billing. |
+
+## Architecture
+
+```text
+Audio Stream
+  -> STT Engine
+  -> Final Transcript Segment
+  -> App State
+  -> Translation Pipeline
+  -> Transcript UI
+  -> AI Summary
+  -> Record Vault / Export
+```
+
+Main application areas:
+
+| Area | Responsibility |
+| --- | --- |
+| `src/App.jsx` | Central app state, transcript segments, logs, records, filters, and user actions. |
+| `src/hooks/useSTT.js` | Unified STT abstraction for browser, Groq, and Deepgram engines. |
+| `src/hooks/useTranslation.js` | Handles translation requests for transcript segments. |
+| `src/hooks/useSummarize.js` | Generates AI meeting summaries from selected transcript data. |
+| `src/components/` | UI components for controls, transcript, audio meter, summaries, and record vault. |
+| `src/utils/` | LLM calls, model config, export helpers, speaker colors, and HTML sanitization. |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Chrome or Edge recommended
+- At least one API key for translation or summarization
+- Optional: Deepgram or Groq API key for cloud STT
+
+### Installation
 
 ```bash
+git clone <repository-url>
 cd translation-tool
 npm install
 cp .env.example .env
 npm run dev
 ```
 
-Mở `http://localhost:5173`.
+Open:
 
-## Cấu hình API key
+```text
+http://localhost:5173
+```
 
-Điền vào file `.env` (chỉ cần key bạn dùng):
+## Environment Variables
 
-- `VITE_ANTHROPIC_API_KEY`
-- `VITE_GEMINI_API_KEY`
-- `VITE_OPENAI_API_KEY`
-- `VITE_DEEPSEEK_API_KEY`
-- `VITE_GROQ_API_KEY`
-- `VITE_GLM_API_KEY`
-- `VITE_DEEPGRAM_API_KEY`
+Create a `.env` file from `.env.example` and add the keys you want to use.
 
-Gợi ý tối thiểu:
-- Muốn phân loại người nói: thêm `VITE_DEEPGRAM_API_KEY`
-- Muốn tiết kiệm chi phí: dùng Web Speech + model miễn phí
+```env
+VITE_ANTHROPIC_API_KEY=
+VITE_GEMINI_API_KEY=
+VITE_OPENAI_API_KEY=
+VITE_DEEPSEEK_API_KEY=
+VITE_GROQ_API_KEY=
+VITE_GLM_API_KEY=
+VITE_DEEPGRAM_API_KEY=
+```
 
-## Cách dùng
+Recommended setup:
 
-1. Chọn STT engine:
-   - `Web Speech API` (free, không cần key)
-   - `Groq Whisper V3` (nhanh, cần key Groq)
-   - `Deepgram Nova-2` (chuẩn, có speaker diarization)
-2. Chọn ngôn ngữ họp (`English` hoặc `Vietnamese`)
-3. Nhấn `Bắt đầu` và cấp quyền microphone
-4. Theo dõi:
-   - Transcript realtime
-   - Audio meter (dao động khi có âm thanh)
-5. Nhấn `Tạo biên bản`
-6. Trong modal biên bản:
-   - Tab `Tóm tắt (AI)`
-   - Tab `Full script`
-7. Lưu vào kho hoặc export `.md` / `.txt`
+| Goal | Suggested config |
+| --- | --- |
+| Quick demo without paid STT | Use Web Speech API and configure one LLM provider. |
+| Better transcription quality | Add `VITE_GROQ_API_KEY` or `VITE_DEEPGRAM_API_KEY`. |
+| Speaker diarization | Use Deepgram with English meeting audio. |
 
-Lưu ý:
-- Nút `Tải full transcript .md` xuất **toàn bộ** transcript (không theo bộ lọc speaker).
-- Speaker diarization hoạt động tốt nhất khi dùng Deepgram và cuộc họp tiếng Anh.
+## Usage
+
+1. Choose an STT engine: Web Speech API, Groq Whisper, or Deepgram Nova-2.
+2. Choose the meeting language: English or Vietnamese.
+3. Start recording and allow microphone permission.
+4. Monitor realtime transcript and microphone audio level.
+5. Generate an AI meeting summary after the session.
+6. Review either the AI summary or full transcript.
+7. Save the record locally or export it as `.md` / `.txt`.
+
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server. |
+| `npm run build` | Build the production bundle. |
+| `npm run preview` | Preview the production build locally. |
+| `npm test` | Run the Vitest test suite. |
+| `npm run test:coverage` | Run tests with coverage. |
+| `npm run gitnexus:status` | Check GitNexus project index status. |
+| `npm run gitnexus:analyze` | Re-analyze the project with GitNexus. |
 
 ## Troubleshooting
 
-- Không ra transcript: chờ 1-3 giây sau khi bấm `Bắt đầu`, kiểm tra lại quyền mic.
-- Web Speech tiếng Việt yếu: chuyển sang `Deepgram` hoặc `Groq`.
-- Deepgram lỗi kết nối: kiểm tra `VITE_DEEPGRAM_API_KEY`.
-- Audio meter không chạy: kiểm tra mic có đang được cấp quyền.
+| Issue | Suggested fix |
+| --- | --- |
+| No transcript appears | Wait a few seconds after starting, then check microphone permission and browser support. |
+| Web Speech quality is poor | Try Groq Whisper or Deepgram, especially for Vietnamese or noisy environments. |
+| Deepgram does not connect | Check `VITE_DEEPGRAM_API_KEY` and network access. |
+| Audio meter is not moving | Confirm the browser has microphone permission and the selected input device is active. |
+| Summary generation fails | Check that at least one LLM API key is configured correctly. |
 
-## Tài liệu kỹ thuật
+## Documentation
 
-- Kiến trúc dev: xem `ARCHITECTURE.md`
-- Thiết kế UI: xem `DESIGN.md`
-- Tổng quan sản phẩm + roadmap: xem `PROJECT_OVERVIEW.md`
-- Kế hoạch cải thiện STT + chi phí cloud: xem `Issue.md`
-- Kế hoạch ổn định (nhấn là chạy): xem `STABILITY_PLAN.md`
+| Document | Purpose |
+| --- | --- |
+| `ARCHITECTURE.md` | Developer architecture, hooks, data flow, and technical decisions. |
+| `DESIGN.md` | UI and product design notes. |
+| `PROJECT_OVERVIEW.md` | Product overview, goals, and roadmap. |
+| `Issue.md` | STT quality notes, known limitations, and improvement ideas. |
+| `STABILITY_PLAN.md` | Stability improvement plan and checklist. |
+| `TEST_PLAN.md` | Testing strategy and validation notes. |
+
+## Project Status
+
+This project is a working prototype focused on practical AI-assisted meeting workflows:
+
+- Realtime transcript generation
+- English-Vietnamese translation
+- AI meeting notes
+- Local record storage
+- Markdown/text export
+- Multiple STT engine support
+
+Future improvements may include backend key management, stronger privacy controls, glossary support, and deeper evaluation of STT quality across real meeting environments.
