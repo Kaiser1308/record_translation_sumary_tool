@@ -55,6 +55,24 @@ function getStoredJSON(key, fallback) {
   }
 }
 
+function safeSetLocalStorage(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    try {
+      const oldestKeys = [SESSION_LOGS_KEY, SESSION_SEGMENTS_KEY, SESSION_RECORDS_KEY];
+      for (const k of oldestKeys) {
+        if (k !== key) {
+          localStorage.removeItem(k);
+        }
+      }
+      localStorage.setItem(key, value);
+    } catch {
+      // localStorage full, non-critical — skip silently
+    }
+  }
+}
+
 function timestamp() {
   const d = new Date();
   return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -107,10 +125,20 @@ export default function App() {
 
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
+  const startTimeBySessionRef = useRef(new Map());
+  const firstResultLoggedRef = useRef(new Set());
 
   const addLog = useCallback((type, message) => {
-    setLogs((prev) => [...prev, { id: Date.now() + Math.random(), type, message, time: timestamp() }]);
+    setLogs((prev) => [...prev, { id: crypto.randomUUID(), type, message, time: timestamp() }]);
   }, []);
+
+  const logSttEvent = useCallback((event, payload = {}, type = 'info') => {
+    const detail = Object.entries(payload)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => `${k}=${v}`)
+      .join(' ');
+    addLog(type, detail ? `[stt_event] ${event} ${detail}` : `[stt_event] ${event}`);
+  }, [addLog]);
 
   const updateSegment = useCallback((id, updates) => {
     setSegments((prev) =>
@@ -130,7 +158,14 @@ export default function App() {
 
   // ★ Callback ổn định — bổ sung speaker metadata
   const handleFinalResult = useCallback((text, meta = {}) => {
-    const id = Date.now() + Math.random();
+    const sessionId = meta.sessionId ?? null;
+    if (sessionId != null && !firstResultLoggedRef.current.has(sessionId)) {
+      firstResultLoggedRef.current.add(sessionId);
+      const startedAt = startTimeBySessionRef.current.get(sessionId);
+      const firstResultMs = startedAt ? Date.now() - startedAt : undefined;
+      logSttEvent('first_result_ms', { sessionId, ms: firstResultMs }, 'success');
+    }
+    const id = crypto.randomUUID();
     const speaker = meta.speaker ?? null;
     const isEn = meetingLang === 'en';
     const seg = {
@@ -173,21 +208,21 @@ export default function App() {
         updateSegment(id, { [isEn ? 'vi' : 'en']: null, error: true });
         addLog('error', `Lỗi dịch: ${err.message?.slice(0, 80)}`);
       });
-  }, [addLog, updateSegment, meetingLang]);
+  }, [addLog, updateSegment, meetingLang, logSttEvent]);
 
   const stt = useSTT(sttEngine, handleFinalResult, meetingLang);
 
   // Lưu localStorage
-  useEffect(() => { localStorage.setItem('sttEngine', sttEngine); }, [sttEngine]);
-  useEffect(() => { localStorage.setItem('meetingLang', meetingLang); }, [meetingLang]);
-  useEffect(() => { localStorage.setItem('translationModel', translationModel); }, [translationModel]);
-  useEffect(() => { localStorage.setItem('summaryModel', summaryModel); }, [summaryModel]);
-  useEffect(() => { localStorage.setItem('translationEnabled', String(translationEnabled)); }, [translationEnabled]);
-  useEffect(() => { localStorage.setItem(SESSION_SEGMENTS_KEY, JSON.stringify(segments)); }, [segments]);
-  useEffect(() => { localStorage.setItem(SESSION_SUMMARY_KEY, summaryText); }, [summaryText]);
-  useEffect(() => { localStorage.setItem(SESSION_LOGS_KEY, JSON.stringify(logs)); }, [logs]);
-  useEffect(() => { localStorage.setItem(SESSION_RECORDS_KEY, JSON.stringify(records)); }, [records]);
-  useEffect(() => { localStorage.setItem(SESSION_SPEAKER_NAMES_KEY, JSON.stringify(speakerNames)); }, [speakerNames]);
+  useEffect(() => { try { localStorage.setItem('sttEngine', sttEngine); } catch {} }, [sttEngine]);
+  useEffect(() => { try { localStorage.setItem('meetingLang', meetingLang); } catch {} }, [meetingLang]);
+  useEffect(() => { try { localStorage.setItem('translationModel', translationModel); } catch {} }, [translationModel]);
+  useEffect(() => { try { localStorage.setItem('summaryModel', summaryModel); } catch {} }, [summaryModel]);
+  useEffect(() => { try { localStorage.setItem('translationEnabled', String(translationEnabled)); } catch {} }, [translationEnabled]);
+  useEffect(() => { safeSetLocalStorage(SESSION_SEGMENTS_KEY, JSON.stringify(segments)); }, [segments]);
+  useEffect(() => { safeSetLocalStorage(SESSION_SUMMARY_KEY, summaryText); }, [summaryText]);
+  useEffect(() => { safeSetLocalStorage(SESSION_LOGS_KEY, JSON.stringify(logs.slice(-500))); }, [logs]);
+  useEffect(() => { safeSetLocalStorage(SESSION_RECORDS_KEY, JSON.stringify(records)); }, [records]);
+  useEffect(() => { safeSetLocalStorage(SESSION_SPEAKER_NAMES_KEY, JSON.stringify(speakerNames)); }, [speakerNames]);
 
   // Kiểm tra API key theo provider
   useEffect(() => {
@@ -209,17 +244,41 @@ export default function App() {
   }, [translationModel, translationEnabled, addLog]);
 
   useEffect(() => {
-    if (stt.isListening) addLog('stt', `Bắt đầu nghe (${sttEngine === 'deepgram' ? 'Deepgram' : 'Web Speech'})`);
-  }, [stt.isListening]);
+    if (stt.sessionState === 'listening') {
+      const engineLabel = sttEngine === 'deepgram' ? 'Deepgram' : sttEngine === 'groq' ? 'Groq' : 'Web Speech';
+      addLog('stt', `Bắt đầu nghe (${engineLabel})`);
+    }
+  }, [stt.sessionState, sttEngine, addLog]);
 
-  const handleStart = useCallback(() => {
-    stt.start();
-  }, [stt]);
+  const handleStart = useCallback(async () => {
+    logSttEvent('start_clicked', { engine: sttEngine });
+    const result = await stt.start();
+    if (result.ok) {
+      if (result.sessionId != null) {
+        startTimeBySessionRef.current.set(result.sessionId, Date.now());
+      }
+      logSttEvent('engine_ready', { engine: sttEngine, sessionId: result.sessionId }, 'success');
+      logSttEvent('mic_granted', { engine: sttEngine, sessionId: result.sessionId }, 'success');
+      return;
+    }
+    if (result.errorCode === 'MIC_DENIED' || result.errorCode === 'not-allowed') {
+      logSttEvent('mic_denied', { engine: sttEngine, errorCode: result.errorCode }, 'warn');
+    }
+    logSttEvent('start_failed', { engine: sttEngine, errorCode: result.errorCode }, 'error');
+    addLog('warn', 'Không thể bắt đầu nghe. Vui lòng thử lại.');
+  }, [stt, sttEngine, logSttEvent, addLog]);
 
-  const handleStop = useCallback(() => {
-    stt.stop();
-    addLog('stt', 'Đã dừng nghe');
-  }, [stt, addLog]);
+  const handleStop = useCallback(async () => {
+    const result = await stt.stop();
+    if (result.ok) {
+      logSttEvent('stop_done', { engine: sttEngine, sessionId: stt.sessionId }, 'info');
+      addLog('stt', 'Đã dừng nghe');
+      return;
+    }
+    if (result.errorCode !== 'ALREADY_STOPPED') {
+      logSttEvent('stop_failed', { engine: sttEngine, errorCode: result.errorCode }, 'error');
+    }
+  }, [stt, sttEngine, addLog, logSttEvent]);
 
   const handleClear = useCallback(() => {
     setSegments([]);
@@ -227,10 +286,14 @@ export default function App() {
     setSummarySnapshotSegments([]);
     setLogs([]);
     setSpeakerFilter(null);
+    setSpeakerNames({});
     stt.resetSpeakers?.();
+    startTimeBySessionRef.current.clear();
+    firstResultLoggedRef.current.clear();
     localStorage.removeItem(SESSION_SEGMENTS_KEY);
     localStorage.removeItem(SESSION_SUMMARY_KEY);
     localStorage.removeItem(SESSION_LOGS_KEY);
+    localStorage.removeItem(SESSION_SPEAKER_NAMES_KEY);
   }, [stt]);
 
   // ★ Tóm tắt chỉ segments hiển thị (theo filter) — Option A
@@ -281,7 +344,7 @@ export default function App() {
     const segs = payload.segments || [];
     const names = payload.speakerNames || {};
     const record = {
-      id: Date.now() + Math.random(),
+      id: crypto.randomUUID(),
       title: payload.title,
       description: payload.description || '',
       summary: payload.summary,
@@ -378,11 +441,13 @@ export default function App() {
             speakerNames={speakerNames}
             setSpeakerNames={setSpeakerNames}
             segments={segments}
+            meetingLang={meetingLang}
           />
         )}
 
         <ControlBar
           isListening={stt.isListening}
+          sttSessionState={stt.sessionState}
           onStart={handleStart}
           onStop={handleStop}
           onClear={handleClear}

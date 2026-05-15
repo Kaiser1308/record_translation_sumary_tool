@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import useAudioLevel from './useAudioLevel';
 
+const START_TIMEOUT_MS = 5000;
+
 export default function useDeepgramSTT(onFinalResult, meetingLang = 'en') {
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
@@ -15,6 +17,7 @@ export default function useDeepgramSTT(onFinalResult, meetingLang = 'en') {
   const stopResolveRef = useRef(null);
   const meetingLangRef = useRef(meetingLang);
   const processedUtteranceIdsRef = useRef(new Set());
+  const processedFinalTextsRef = useRef(new Set());
 
   const audioLevel = useAudioLevel(meterStream);
 
@@ -67,6 +70,13 @@ export default function useDeepgramSTT(onFinalResult, meetingLang = 'en') {
 
   const stop = useCallback(() => {
     return new Promise((resolve) => {
+      if (!shouldListenRef.current && !wsRef.current && !mediaRecorderRef.current && !streamRef.current) {
+        setIsListening(false);
+        setInterimText('');
+        setMeterStream(null);
+        resolve();
+        return;
+      }
       shouldListenRef.current = false;
       const ws = wsRef.current;
       const recorder = mediaRecorderRef.current;
@@ -131,114 +141,151 @@ export default function useDeepgramSTT(onFinalResult, meetingLang = 'en') {
   }, []);
 
   const start = useCallback(() => {
+    if (isListening) return Promise.resolve();
     const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY;
     if (!apiKey) {
       alert('Chưa cấu hình VITE_DEEPGRAM_API_KEY trong file .env');
-      return;
+      return Promise.reject(new Error('ENGINE_KEY_MISSING'));
     }
 
-    shouldListenRef.current = true;
-    processedUtteranceIdsRef.current = new Set();
+    return new Promise((resolve, reject) => {
+      shouldListenRef.current = true;
+      processedUtteranceIdsRef.current = new Set();
+      processedFinalTextsRef.current = new Set();
+      let ready = false;
+      let settled = false;
+      let readyTimeout = null;
 
-    const connect = () => {
-      const wsUrl = buildWsUrl();
-      const ws = new WebSocket(wsUrl, ['token', apiKey]);
-
-      ws.onopen = async () => {
-        console.log('[DeepgramSTT] WebSocket connected');
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-          });
-          streamRef.current = stream;
-          setMeterStream(stream);
-
-          const recorder = new MediaRecorder(stream, {
-            mimeType: 'audio/webm;codecs=opus',
-          });
-          mediaRecorderRef.current = recorder;
-
-          recorder.ondataavailable = (e) => {
-            if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-              ws.send(e.data);
-            }
-          };
-
-          recorder.start(250);
-          setIsListening(true);
-        } catch (err) {
-          console.error('[DeepgramSTT] Mic error:', err);
-          ws.close();
-        }
+      const settle = (ok, err) => {
+        if (settled) return;
+        settled = true;
+        if (readyTimeout) clearTimeout(readyTimeout);
+        if (ok) resolve();
+        else reject(err || new Error('ENGINE_START_FAIL'));
       };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
+      const connect = () => {
+        const wsUrl = buildWsUrl();
+        const ws = new WebSocket(wsUrl, ['token', apiKey]);
 
-          if (data.type === 'Results' && data.channel?.alternatives) {
-            const isVi = meetingLangRef.current === 'vi';
-
-            if (!isVi && data.utterances) {
-              handleUtteranceResults(data.utterances);
-              setInterimText('');
+        ws.onopen = async () => {
+          console.log('[DeepgramSTT] WebSocket connected');
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+            });
+            if (!shouldListenRef.current) {
+              stream.getTracks().forEach((t) => t.stop());
+              settle(false, new Error('ENGINE_ABORTED'));
               return;
             }
+            streamRef.current = stream;
+            setMeterStream(stream);
 
-            const alt = data.channel.alternatives[0];
-            if (!alt) return;
+            const recorder = new MediaRecorder(stream, {
+              mimeType: 'audio/webm;codecs=opus',
+            });
+            mediaRecorderRef.current = recorder;
 
-            if (data.is_final && alt.transcript?.trim()) {
-              const text = alt.transcript.trim();
-              if (text === lastFinalTextRef.current) return;
-              lastFinalTextRef.current = text;
+            recorder.ondataavailable = (e) => {
+              if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+                ws.send(e.data);
+              }
+            };
 
-              const speaker = getSpeakerFromWords(alt.words);
+            recorder.start(250);
+            setIsListening(true);
+            ready = true;
+            settle(true);
+          } catch (err) {
+            console.error('[DeepgramSTT] Mic error:', err);
+            ws.close();
+            settle(false, new Error('MIC_DENIED'));
+          }
+        };
 
-              if (speaker != null) {
-                setDetectedSpeakers((prev) => {
-                  if (prev.has(speaker)) return prev;
-                  const next = new Set(prev);
-                  next.add(speaker);
-                  return next;
-                });
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'Results' && data.channel?.alternatives) {
+              const isVi = meetingLangRef.current === 'vi';
+
+              if (!isVi && data.utterances) {
+                handleUtteranceResults(data.utterances);
+                setInterimText('');
+                return;
               }
 
-              console.log('[DeepgramSTT] final, speaker:', speaker, 'text:', text.slice(0, 40));
-              onFinalResultRef.current?.(text, { speaker });
-              setInterimText('');
-            } else {
               const alt = data.channel.alternatives[0];
-              if (alt) setInterimText(alt.transcript ?? '');
+              if (!alt) return;
+
+              if (data.is_final && alt.transcript?.trim()) {
+                const text = alt.transcript.trim();
+                if (text === lastFinalTextRef.current) return;
+                if (processedFinalTextsRef.current.has(text)) return;
+                lastFinalTextRef.current = text;
+                processedFinalTextsRef.current.add(text);
+                if (processedFinalTextsRef.current.size > 200) {
+                  const arr = Array.from(processedFinalTextsRef.current);
+                  processedFinalTextsRef.current = new Set(arr.slice(-100));
+                }
+
+                const speaker = getSpeakerFromWords(alt.words);
+
+                if (speaker != null) {
+                  setDetectedSpeakers((prev) => {
+                    if (prev.has(speaker)) return prev;
+                    const next = new Set(prev);
+                    next.add(speaker);
+                    return next;
+                  });
+                }
+
+                console.log('[DeepgramSTT] final, speaker:', speaker, 'text:', text.slice(0, 40));
+                onFinalResultRef.current?.(text, { speaker });
+                setInterimText('');
+              } else {
+                const alt = data.channel.alternatives[0];
+                if (alt) setInterimText(alt.transcript ?? '');
+              }
             }
+          } catch (err) {
+            console.error('[DeepgramSTT] parse error:', err);
           }
-        } catch (err) {
-          console.error('[DeepgramSTT] parse error:', err);
-        }
+        };
+
+        ws.onclose = (event) => {
+          console.log('[DeepgramSTT] WebSocket closed, code:', event.code);
+          const isCurrent = wsRef.current === ws;
+          if (stopResolveRef.current) {
+            stopResolveRef.current();
+            stopResolveRef.current = null;
+            return;
+          }
+          if (!ready) {
+            settle(false, new Error('SOCKET_CLOSED'));
+          }
+          if (shouldListenRef.current && isCurrent) {
+            lastFinalTextRef.current = '';
+            setTimeout(connect, 1000);
+          }
+        };
+
+        ws.onerror = (event) => {
+          console.error('[DeepgramSTT] WebSocket error:', event);
+          if (!ready) settle(false, new Error('NETWORK_FAIL'));
+        };
+
+        wsRef.current = ws;
       };
 
-      ws.onclose = (event) => {
-        console.log('[DeepgramSTT] WebSocket closed, code:', event.code);
-        const isCurrent = wsRef.current === ws;
-        if (stopResolveRef.current) {
-          stopResolveRef.current();
-          stopResolveRef.current = null;
-          return;
-        }
-        if (shouldListenRef.current && isCurrent) {
-          setTimeout(connect, 1000);
-        }
-      };
-
-      ws.onerror = (event) => {
-        console.error('[DeepgramSTT] WebSocket error:', event);
-      };
-
-      wsRef.current = ws;
-    };
-
-    connect();
-  }, [getSpeakerFromWords, buildWsUrl, handleUtteranceResults]);
+      readyTimeout = setTimeout(() => {
+        if (!ready) settle(false, new Error('ENGINE_TIMEOUT'));
+      }, START_TIMEOUT_MS);
+      connect();
+    });
+  }, [isListening, getSpeakerFromWords, buildWsUrl, handleUtteranceResults]);
 
   const resetSpeakers = useCallback(() => {
     setDetectedSpeakers(new Set());

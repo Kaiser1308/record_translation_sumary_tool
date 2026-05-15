@@ -94,6 +94,7 @@ Thứ tự gợi ý theo **impact / effort**; có thể song song tùy nguồn l
 | `README.md` | Cài đặt, env, cách dùng, troubleshooting |
 | `ARCHITECTURE.md` | Luồng dữ liệu, hooks, segment model, cost ước lượng |
 | `Issue.md` | Vấn đề Web Speech, hướng giải pháp & backlog gợi ý |
+| `STABILITY_PLAN.md` | Kế hoạch tối ưu độ ổn định và checklist sprint |
 
 ---
 

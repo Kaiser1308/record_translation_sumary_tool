@@ -49,6 +49,10 @@ async function callGemini({ system, userMessage, model, maxTokens }) {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) throw new Error('Chưa cấu hình VITE_GEMINI_API_KEY');
 
+  // NOTE: Gemini REST API requires the API key as a query parameter.
+  // This means the key will appear in browser DevTools Network tab.
+  // This is a known limitation of the Gemini REST v1beta API.
+  // If this is a concern, use a backend proxy to call Gemini server-side.
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const res = await fetch(url, {
     method: 'POST',

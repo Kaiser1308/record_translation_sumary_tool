@@ -9,6 +9,7 @@ export default function SpeakerFilter({
   speakerNames,
   setSpeakerNames,
   segments,
+  meetingLang = 'en',
 }) {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -21,7 +22,8 @@ export default function SpeakerFilter({
   const wordCounts = {};
   for (const seg of segments) {
     if (seg.speaker != null) {
-      const count = seg.en?.split(/\s+/).length || 0;
+      const textField = meetingLang === 'vi' ? seg.vi : seg.en;
+      const count = textField?.split(/\s+/).length || 0;
       wordCounts[seg.speaker] = (wordCounts[seg.speaker] || 0) + count;
     }
   }

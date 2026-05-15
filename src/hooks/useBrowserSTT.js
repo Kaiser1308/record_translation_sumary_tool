@@ -3,6 +3,7 @@ import useAudioLevel from './useAudioLevel';
 
 const VI_RESTART_TIMEOUT = 10000;
 const MAX_CONSECUTIVE_RESTARTS = 999;
+const START_TIMEOUT_MS = 5000;
 
 export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
   const [isListening, setIsListening] = useState(false);
@@ -18,6 +19,7 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
   const viRestartTimerRef = useRef(null);
   const consecutiveRestartsRef = useRef(0);
   const viWarningShownRef = useRef(false);
+  const startTimeoutRef = useRef(null);
 
   useEffect(() => {
     onFinalResultRef.current = onFinalResult;
@@ -33,6 +35,13 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
     if (viRestartTimerRef.current) {
       clearTimeout(viRestartTimerRef.current);
       viRestartTimerRef.current = null;
+    }
+  }, []);
+
+  const clearStartTimeout = useCallback(() => {
+    if (startTimeoutRef.current) {
+      clearTimeout(startTimeoutRef.current);
+      startTimeoutRef.current = null;
     }
   }, []);
 
@@ -75,119 +84,141 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
   }, [clearViRestartTimer]);
 
   const start = useCallback(() => {
+    if (isListening) return Promise.resolve();
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert('Trình duyệt không hỗ trợ Web Speech API. Dùng Chrome hoặc Edge.');
-      return;
+      return Promise.reject(new Error('ENGINE_UNSUPPORTED'));
     }
 
-    shouldListenRef.current = true;
-    lastResultTimeRef.current = Date.now();
-    consecutiveRestartsRef.current = 0;
-    viWarningShownRef.current = false;
-
-    const isVi = meetingLangRef.current === 'vi';
-    const recognition = new SpeechRecognition();
-    recognition.lang = isVi ? 'vi-VN' : 'en-US';
-    recognition.continuous = !isVi;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-
-    console.log('[BrowserSTT] start, lang =', recognition.lang, 'continuous =', recognition.continuous);
-
-    recognition.onresult = (event) => {
+    return new Promise((resolve, reject) => {
+      shouldListenRef.current = true;
       lastResultTimeRef.current = Date.now();
       consecutiveRestartsRef.current = 0;
-      scheduleViRestart(recognition);
+      viWarningShownRef.current = false;
+      clearStartTimeout();
 
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        const alt = result[0];
-        const raw = alt?.transcript ?? '';
-        if (result.isFinal) {
-          const text = raw.trim();
-          if (!text) continue;
-          // Web Speech đôi khi trả chuỗi rác "null" / "null null"
-          if (meetingLangRef.current === 'vi' && /^(null(\s+null)*)$/i.test(text)) continue;
-          onFinalResultRef.current?.(text, { speaker: null });
-        } else {
-          interim += raw;
+      const isVi = meetingLangRef.current === 'vi';
+      const recognition = new SpeechRecognition();
+      recognition.lang = isVi ? 'vi-VN' : 'en-US';
+      recognition.continuous = !isVi;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      let settled = false;
+      const settle = (ok, err) => {
+        if (settled) return;
+        settled = true;
+        clearStartTimeout();
+        if (ok) resolve();
+        else reject(err || new Error('ENGINE_START_FAIL'));
+      };
+
+      startTimeoutRef.current = setTimeout(() => {
+        shouldListenRef.current = false;
+        settle(false, new Error('ENGINE_TIMEOUT'));
+      }, START_TIMEOUT_MS);
+
+      console.log('[BrowserSTT] start, lang =', recognition.lang, 'continuous =', recognition.continuous);
+
+      recognition.onresult = (event) => {
+        lastResultTimeRef.current = Date.now();
+        consecutiveRestartsRef.current = 0;
+        scheduleViRestart(recognition);
+
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const alt = result[0];
+          const raw = alt?.transcript ?? '';
+          if (result.isFinal) {
+            const text = raw.trim();
+            if (!text) continue;
+            // Web Speech đôi khi trả chuỗi rác "null" / "null null"
+            if (meetingLangRef.current === 'vi' && /^(null(\s+null)*)$/i.test(text)) continue;
+            onFinalResultRef.current?.(text, { speaker: null });
+          } else {
+            interim += raw;
+          }
         }
-      }
-      setInterimText(interim);
-    };
+        setInterimText(interim);
+      };
 
-    recognition.onerror = (event) => {
-      console.log('[BrowserSTT] error:', event.error);
-      if (event.error === 'no-speech' || event.error === 'aborted') return;
-      if (event.error === 'not-allowed') {
-        alert('Lỗi: Chưa cấp quyền sử dụng Microphone!');
-      } else if (event.error === 'network') {
-        alert('Lỗi mạng: Web Speech API yêu cầu kết nối Internet.');
-      }
-    };
+      recognition.onerror = (event) => {
+        console.log('[BrowserSTT] error:', event.error);
+        if (event.error === 'no-speech' || event.error === 'aborted') return;
+        if (event.error === 'not-allowed') {
+          alert('Lỗi: Chưa cấp quyền sử dụng Microphone!');
+        } else if (event.error === 'network') {
+          alert('Lỗi mạng: Web Speech API yêu cầu kết nối Internet.');
+        }
+        settle(false, new Error(event.error || 'ENGINE_ERROR'));
+      };
 
-    recognition.onend = () => {
-      console.log('[BrowserSTT] onend, shouldListen:', shouldListenRef.current, 'isCurrent:', recognitionRef.current === recognition);
-      if (stopResolveRef.current) {
-        stopResolveRef.current();
-        stopResolveRef.current = null;
-        return;
-      }
-      if (shouldListenRef.current && recognitionRef.current === recognition) {
+      recognition.onend = () => {
+        console.log('[BrowserSTT] onend, shouldListen:', shouldListenRef.current, 'isCurrent:', recognitionRef.current === recognition);
+        if (stopResolveRef.current) {
+          stopResolveRef.current();
+          stopResolveRef.current = null;
+          return;
+        }
+        if (shouldListenRef.current && recognitionRef.current === recognition) {
+          try {
+            recognition.start();
+            scheduleViRestart(recognition);
+          } catch (err) {
+            console.error('[BrowserSTT] restart error:', err);
+          }
+        }
+      };
+
+      recognitionRef.current = recognition;
+
+      let recognitionStarted = false;
+      const tryStartRecognition = () => {
+        if (recognitionStarted) return;
+        if (!shouldListenRef.current) return;
+        if (recognitionRef.current !== recognition) return;
+        recognitionStarted = true;
         try {
           recognition.start();
           scheduleViRestart(recognition);
+          setIsListening(true);
+          settle(true);
         } catch (err) {
-          console.error('[BrowserSTT] restart error:', err);
+          console.error('[BrowserSTT] start error:', err);
+          settle(false, err);
         }
-      }
-    };
+      };
 
-    recognitionRef.current = recognition;
+      // Mở mic cho meter trước, rồi mới SpeechRecognition (tránh xung đột trên một số trình duyệt).
+      // Timer dự phòng: nếu getUserMedia treo hoặc lỗi, vẫn gọi recognition.start() sau tối đa 2.5s.
+      const fallbackTimer = setTimeout(() => tryStartRecognition(), 2500);
 
-    let recognitionStarted = false;
-    const tryStartRecognition = () => {
-      if (recognitionStarted) return;
-      if (!shouldListenRef.current) return;
-      if (recognitionRef.current !== recognition) return;
-      recognitionStarted = true;
-      try {
-        recognition.start();
-        scheduleViRestart(recognition);
-        setIsListening(true);
-      } catch (err) {
-        console.error('[BrowserSTT] start error:', err);
-      }
-    };
-
-    // Mở mic cho meter trước, rồi mới SpeechRecognition (tránh xung đột trên một số trình duyệt).
-    // Timer dự phòng: nếu getUserMedia treo hoặc lỗi, vẫn gọi recognition.start() sau tối đa 2.5s.
-    const fallbackTimer = setTimeout(() => tryStartRecognition(), 2500);
-
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream) => {
-        if (!shouldListenRef.current) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        meterStreamRef.current = stream;
-        setMeterStream(stream);
-      })
-      .catch((err) => {
-        console.warn('[BrowserSTT] Meter stream:', err?.message || err);
-      })
-      .finally(() => {
-        clearTimeout(fallbackTimer);
-        tryStartRecognition();
-      });
-  }, [scheduleViRestart]);
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          if (!shouldListenRef.current) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          meterStreamRef.current = stream;
+          setMeterStream(stream);
+        })
+        .catch((err) => {
+          console.warn('[BrowserSTT] Meter stream:', err?.message || err);
+        })
+        .finally(() => {
+          clearTimeout(fallbackTimer);
+          tryStartRecognition();
+        });
+    });
+  }, [isListening, scheduleViRestart, clearStartTimeout]);
 
   const stop = useCallback(() => {
     return new Promise((resolve) => {
+      clearStartTimeout();
       shouldListenRef.current = false;
       clearViRestartTimer();
       if (meterStreamRef.current) {
@@ -218,7 +249,7 @@ export default function useBrowserSTT(onFinalResult, meetingLang = 'en') {
         resolve();
       }
     });
-  }, [clearViRestartTimer]);
+  }, [clearViRestartTimer, clearStartTimeout]);
 
   return { start, stop, isListening, interimText, audioLevel };
 }
